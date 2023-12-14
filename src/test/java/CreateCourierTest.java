@@ -1,8 +1,5 @@
 import edu.praktikum.courier.CourierClient;
 import edu.praktikum.models.CourierCreate;
-import edu.praktikum.models.CourierWithWrongDataCreate;
-import edu.praktikum.models.CourierWithoutFullData;
-import edu.praktikum.models.SameCourierCred;
 import io.qameta.allure.Description;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.RestAssured;
@@ -12,6 +9,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static edu.praktikum.courier.CourierRandom.randomCourierCreate;
+import static edu.praktikum.models.CourierCreateCreds.credsFrom;
 import static org.apache.http.HttpStatus.*;
 import static org.junit.Assert.assertEquals;
 
@@ -27,10 +25,9 @@ public class CreateCourierTest {
         courierCreate = randomCourierCreate();
         courierClient = new CourierClient();
     }
-
     @Test
     @DisplayName("Create courier")
-    @Description("Проверка возможности создания различных курьеров")
+    @Description("Проверка успешного создания курьера")
     public void createNewCourier() {
 
         Response createResponse = courierClient.create(courierCreate);
@@ -38,23 +35,24 @@ public class CreateCourierTest {
         assertEquals("Неверный статус код", SC_CREATED, createResponse.statusCode());
         assertEquals("Неверное сообщение при успешном создании курьера",
                 true, createResponse.path("ok"));
+    }
 
-        Response sameFullDataCreateResponse = courierClient.sameCreate(SameCourierCred.fromCourierCreate(courierCreate));
-        assertEquals("Неверный статус код", SC_CONFLICT, sameFullDataCreateResponse.statusCode());
-
-        Response createWithoutFullDataResponse = courierClient.createWithoutFullData(CourierWithoutFullData.fromCourierCreate(courierCreate));
-        assertEquals("Неверный статус код", SC_BAD_REQUEST, createWithoutFullDataResponse.statusCode());
-
-        Response createWithSameLoginResponse = courierClient.createWithSameLogin(CourierWithWrongDataCreate.fromCourierCreate(courierCreate));
-        assertEquals("Неверный статус код", SC_CONFLICT, createWithSameLoginResponse.statusCode());
+    @Test
+    @DisplayName("Create same courier")
+    @Description("Проверка создания курьера с одинаковыми данными")
+    public void createSameCourier() {
+        Response firstCourierResponse = courierClient.create(courierCreate);
+        assertEquals("Неверный статус код", SC_CREATED, firstCourierResponse.statusCode());
+        Response sameCourierResponse = courierClient.create(courierCreate);
+        assertEquals("Неверный статус код", SC_CONFLICT, sameCourierResponse.statusCode());
         assertEquals("Некорректное сообщение об ошибке при создании курьера с такими же данными",
-                "Этот логин уже используется. Попробуйте другой.", createWithSameLoginResponse.path("message"));
+                "Этот логин уже используется. Попробуйте другой.", sameCourierResponse.path("message"));
     }
 
     @After
     public void tearDown() {
-        CourierClient courierClient = new CourierClient();
-        courierClient.delete("id");
+        Response loginResponse = courierClient.login(credsFrom(courierCreate));
+        int courierId = loginResponse.path("id");
+        CourierClient.deleteCourierById(courierId);
     }
-
 }

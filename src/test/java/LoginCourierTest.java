@@ -1,8 +1,5 @@
 import edu.praktikum.courier.CourierClient;
 import edu.praktikum.models.CourierCreate;
-import edu.praktikum.models.CourierWithWrongDataLogin;
-import edu.praktikum.models.CourierWithoutFullData;
-import edu.praktikum.models.NonexistingCourier;
 import io.qameta.allure.Description;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.RestAssured;
@@ -12,7 +9,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static edu.praktikum.courier.CourierRandom.randomCourierCreate;
-import static edu.praktikum.models.CourierLogin.fromCourierCreate;
+import static edu.praktikum.models.CourierCreateCreds.credsFrom;
+import static edu.praktikum.utils.RandomCores.randomString;
 import static org.apache.http.HttpStatus.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -29,35 +27,50 @@ public class LoginCourierTest {
 
         courierCreate = randomCourierCreate();
         courierClient = new CourierClient();
+        courierClient.create(courierCreate);
     }
 
     @Test
     @DisplayName("Login courier")
-    @Description("Проверка авторизации курьеров")
+    @Description("Проверка успешной авторизации курьера")
     public void loginCourier() {
-
-        Response createResponse = courierClient.create(courierCreate);
-        createResponse.path("id");
-        assertEquals("Неверный статус код", SC_CREATED, createResponse.statusCode());
-
-        Response loginResponse = courierClient.login(fromCourierCreate(courierCreate));
+        Response loginResponse = courierClient.login(credsFrom(courierCreate));
         assertEquals("Неверный статус код", SC_OK, loginResponse.statusCode());
         assertThat("Пустое тело ответа сервера", loginResponse.path("id"), instanceOf(Integer.class));
-
-        Response loginWithoutFullDataResponse = courierClient.loginWithoutFullData(CourierWithoutFullData.fromCourierCreate(courierCreate));
-        assertEquals("Неверный статус код", SC_BAD_REQUEST, loginWithoutFullDataResponse.statusCode());
-
-        Response loginWrongDataResponse = courierClient.loginWithWrongData(CourierWithWrongDataLogin.fromCourierCreate(courierCreate));
-        assertEquals("Неверный статус код", SC_NOT_FOUND, loginWrongDataResponse.statusCode());
-
-        Response loginNonexistingResponse = courierClient.loginNonexistingCourier(NonexistingCourier.fromCourierCreate(courierCreate));
+    }
+    @Test
+    @DisplayName("Wrong login courier")
+    @Description("Проверка авторизации курьера с неправильным логином")
+    public void loginWithWrongData() {
+        CourierCreate wrongCourierCreate = new CourierCreate();
+        wrongCourierCreate.withLogin(randomString(8)).withPassword(courierCreate.getPassword());
+        Response loginWithWrongDataResponse = courierClient.login(credsFrom(wrongCourierCreate));
+        assertEquals("Неверный статус код", SC_NOT_FOUND, loginWithWrongDataResponse.statusCode());
+    }
+    @Test
+    @DisplayName("Empty login courier")
+    @Description("Проверка авторизации курьера без логина")
+    public void loginWithEmptyField() {
+        CourierCreate emptyLoginCreate = new CourierCreate();
+        emptyLoginCreate.withPassword(courierCreate.getPassword());
+        Response emptyLoginResponse = courierClient.login(credsFrom(emptyLoginCreate));
+        assertEquals("Неверный статус код", SC_BAD_REQUEST, emptyLoginResponse.statusCode());
+    }
+    @Test
+    @DisplayName("Nonexisting courier login")
+    @Description("Проверка авторизации несуществующего курьера")
+    public void loginNonexistingCourier() {
+        CourierCreate nonexistingCourier = new CourierCreate();
+        nonexistingCourier.withLogin(randomString(10)).withPassword(randomString(14));
+        Response loginNonexistingResponse = courierClient.login(credsFrom(nonexistingCourier));
         assertEquals("Неверный статус код", SC_NOT_FOUND, loginNonexistingResponse.statusCode());
     }
 
     @After
     public void tearDown() {
-        CourierClient courierClient = new CourierClient();
-        courierClient.delete("id");
+        Response loginResponse = courierClient.login(credsFrom(courierCreate));
+        int courierId = loginResponse.path("id");
+        CourierClient.deleteCourierById(courierId);
     }
 
 }

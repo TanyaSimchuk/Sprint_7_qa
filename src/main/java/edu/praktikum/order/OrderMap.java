@@ -5,6 +5,7 @@ import io.restassured.RestAssured;
 import io.restassured.response.Response;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.equalTo;
 
 public class OrderMap {
     private static final String ORDERS_API = "/api/v1/orders";
@@ -24,4 +25,5 @@ public class OrderMap {
                 .when()
                 .post(ORDERS_API);
     }
+
 }

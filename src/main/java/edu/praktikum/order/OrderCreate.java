@@ -50,8 +50,4 @@ public class OrderCreate {
         this.color = color;
         return this;
     }
-
-
-    public void delete(String id) {
-    }
 }

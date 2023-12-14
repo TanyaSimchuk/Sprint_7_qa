@@ -56,10 +56,4 @@ public class CreateOrdersParamTest {
         assertThat("Пустое тело ответа сервера", createResponse.path("track"), instanceOf(Integer.class));
     }
 
-    @After
-    public void tearDown() {
-        OrderCreate orderCreate = new OrderCreate();
-        orderCreate.delete("track");
-    }
-
 }
